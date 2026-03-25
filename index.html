@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0f1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AMYY Field Logger</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0f1e;
+    --surface:   #111827;
+    --border:    #1e293b;
+    --accent:    #00d4aa;
+    --accent2:   #0ea5e9;
+    --warn:      #f59e0b;
+    --danger:    #ef4444;
+    --text:      #f1f5f9;
+    --muted:     #64748b;
+    --card:      #151f33;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span {
+    color: var(--accent);
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .status-pill.connected {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,170,0.08);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .status-pill.connected .status-dot {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Connect button */
+  .connect-section {
+    margin-bottom: 28px;
+  }
+
+  .btn-connect {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 14px;
+    color: #0a0f1e;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-connect:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,212,170,0.3); }
+  .btn-connect:active { transform: translateY(0); }
+  .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-disconnect {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--danger);
+    border-radius: 14px;
+    color: var(--danger);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+
+  .btn-disconnect:hover { background: rgba(239,68,68,0.1); }
+
+  /* Readings grid */
+  .readings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .reading-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .reading-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .reading-card.updated::before { opacity: 1; }
+
+  .reading-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .reading-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+
+  .reading-value.fresh { color: var(--accent); }
+
+  .reading-unit {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .reading-icon {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 20px;
+    opacity: 0.3;
+  }
+
+  /* Upload section */
+  .upload-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .upload-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .upload-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .upload-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .upload-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .upload-value.success { color: var(--accent); }
+  .upload-value.pending { color: var(--warn); }
+  .upload-value.failed  { color: var(--danger); }
+
+  /* Log section */
+  .log-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .btn-clear {
+    font-size: 11px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .btn-clear:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
+
+  .log-entries {
+    max-height: 180px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-entry {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(30,41,59,0.5);
+    display: flex;
+    gap: 8px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-msg  { color: var(--text); }
+  .log-msg.ok      { color: var(--accent); }
+  .log-msg.warn    { color: var(--warn); }
+  .log-msg.error   { color: var(--danger); }
+
+  /* Backend URL input */
+  .input-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .input-label {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .input-field {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-field:focus { border-color: var(--accent); }
+
+  /* Download button */
+  .btn-download {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    color: var(--accent);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-download:hover { background: rgba(0,212,170,0.1); }
+  .btn-download:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* No BLE warning */
+  .no-ble {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid var(--danger);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--danger);
+    margin-bottom: 20px;
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(10,15,30,0.3);
+    border-top-color: #0a0f1e;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🌡</div>
+      <div class="logo-text">AMY<span>Y</span></div>
+    </div>
+    <div class="status-pill" id="statusPill">
+      <div class="status-dot"></div>
+      <span id="statusText">OFFLINE</span>
+    </div>
+  </header>
+
+  <!-- No BLE warning -->
+  <div class="no-ble hidden" id="noBleWarning">
+    ⚠️ Web Bluetooth not supported on this browser.<br>
+    Use Chrome or Edge on Android/Desktop.
+  </div>
+
+  <!-- Backend URL -->
+  <div class="input-section" style="display:none">
+    <div class="section-title">Backend</div>
+    <div class="input-group">
+      <label class="input-label">Google Script URL</label>
+      <input class="input-field" id="backendUrl" type="url"
+        placeholder="https://script.google.com/macros/s/..."
+        value="https://script.google.com/macros/s/AKfycbxc8Tn-ELHdyxSacgM7QeeYPnllJZzMvFh53dkuBJpEZVsW2uhLPytIuKqYWIl61dK1/exec">
+    </div>
+  </div>
+
+  <!-- Connect -->
+  <div class="connect-section">
+    <button class="btn-connect" id="btnConnect" onclick="connectBLE()">
+      <span id="connectIcon">📡</span>
+      <span id="connectLabel">Scan for AMYY Logger</span>
+    </button>
+    <button class="btn-disconnect hidden" id="btnDisconnect" onclick="disconnectBLE()">
+      Disconnect
+    </button>
+  </div>
+
+  <!-- Readings -->
+  <div class="readings-grid">
+    <div class="reading-card" id="cardTemp">
+      <div class="reading-icon">🌡</div>
+      <div class="reading-label">Temperature</div>
+      <div class="reading-value" id="valTemp">--</div>
+      <div class="reading-unit">Celsius</div>
+    </div>
+    <div class="reading-card" id="cardHum">
+      <div class="reading-icon">💧</div>
+      <div class="reading-label">Humidity</div>
+      <div class="reading-value" id="valHum">--</div>
+      <div class="reading-unit">Percent</div>
+    </div>
+    <div class="reading-card" id="cardPres">
+      <div class="reading-icon">🔵</div>
+      <div class="reading-label">Pressure</div>
+      <div class="reading-value" id="valPres">--</div>
+      <div class="reading-unit">hPa</div>
+    </div>
+    <div class="reading-card" id="cardGas">
+      <div class="reading-icon">💨</div>
+      <div class="reading-label">Gas</div>
+      <div class="reading-value" id="valGas">--</div>
+      <div class="reading-unit">kOhm</div>
+    </div>
+  </div>
+
+  <!-- Upload stats -->
+  <div class="upload-section">
+    <div class="section-title">Upload Stats</div>
+    <div class="upload-row">
+      <span class="upload-label">Readings received</span>
+      <span class="upload-value" id="statReceived">0</span>
+    </div>
+    <div class="upload-row">
+      <span class="upload-label">Uploaded</span>
+      <span class="upload-value success" id="statUploaded">0</span>
+    </div>
+    <div class="upload-row">
+      <span class="upload-label">Pending</span>
+      <span class="upload-value pending" id="statPending">0</span>
+    </div>
+    <div class="upload-row">
+      <span class="upload-label">Failed</span>
+      <span class="upload-value failed" id="statFailed">0</span>
+    </div>
+  </div>
+
+  <!-- Download CSV -->
+  <button class="btn-download" id="btnDownload" onclick="downloadCSV()" disabled>
+    ⬇ Download CSV
+  </button>
+  <br>
+
+  <!-- Log -->
+  <div class="log-section">
+    <div class="log-header">
+      <div class="section-title" style="margin:0">Activity Log</div>
+      <button class="btn-clear" onclick="clearLog()">Clear</button>
+    </div>
+    <div class="log-entries" id="logEntries">
+      <div class="log-entry">
+        <span class="log-time">--:--:--</span>
+        <span class="log-msg">Waiting to connect...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const DEVICE_NAME     = "AMYY Logger";
+const BACKEND_URL     = "https://script.google.com/macros/s/AKfycbwhdf3TSruLxjx_zf4yhlVzWT9yroWP2HSP299kYbX4bLO4dMw8XPj53N0QZo1MujtyiA/exec";
+const SERVICE_UUID    = "0000181a-0000-1000-8000-00805f9b34fb";
+const UUID_TEMP       = "00002a6e-0000-1000-8000-00805f9b34fb";
+const UUID_HUM        = "00002a6f-0000-1000-8000-00805f9b34fb";
+const UUID_PRES       = "00002a6d-0000-1000-8000-00805f9b34fb";
+const UUID_GAS        = "00002a58-0000-1000-8000-00805f9b34fb";
+
+const SYNC_SERVICE_UUID   = "12345678-1234-1234-1234-1234567890ab";
+const SYNC_CMD_CHAR_UUID  = "12345678-1234-1234-1234-1234567890ac";
+const SYNC_DATA_CHAR_UUID = "12345678-1234-1234-1234-1234567890ad";
+const SYNC_STATUS_CHAR_UUID = "12345678-1234-1234-1234-1234567890ae";
+
+// ============================================================
+// STATE
+// ============================================================
+let device    = null;
+let server    = null;
+let connected = false;
+
+let stats = { received: 0, uploaded: 0, pending: 0, failed: 0 };
+let pendingQueue = [];   // rows waiting to upload
+let allData      = [];   // all received rows for CSV download
+let latest       = { temp: null, hum: null, pres: null, gas: null };
+
+let syncCmdChar = null;
+let syncDataChar = null;
+let syncStatusChar = null;
+
+let backlogChunk = [];
+let backlogReceiving = false;
+let syncInProgress = false;
+// let liveNotificationsStarted = false;
+
+// ============================================================
+// BLE CHECK
+// ============================================================
+window.addEventListener('load', () => {
+  if (!navigator.bluetooth) {
+    document.getElementById('noBleWarning').classList.remove('hidden');
+    document.getElementById('btnConnect').disabled = true;
+  }
+});
+
+
+// ============================================================
+// CONNECT
+// ============================================================
+async function connectBLE() {
+  try {
+    setConnecting(true);
+    log('Scanning for ' + DEVICE_NAME + '...', 'warn');
+
+    log('Requesting device...', 'warn');
+
+// for debugging
+//	device = await navigator.bluetooth.requestDevice({
+//  	acceptAllDevices: true,
+//  	optionalServices: [SERVICE_UUID, SYNC_SERVICE_UUID]
+//	});
+
+	device = await navigator.bluetooth.requestDevice({
+  		filters: [{ name: "AMYY Logger" }],
+  		optionalServices: [SERVICE_UUID, SYNC_SERVICE_UUID]
+	});
+
+
+log('Device selected: ' + device.name, 'ok');
+
+log('Calling gatt.connect()...', 'warn');
+
+server = await device.gatt.connect();
+
+log('GATT connected successfully', 'ok');
+
+device.addEventListener('gattserverdisconnected', onDisconnected);
+
+// Wait for connection to stabilise
+await new Promise(resolve => setTimeout(resolve, 500));
+
+log('Getting primary service...', 'warn');
+
+const service = await server.getPrimaryService(SERVICE_UUID);
+
+log('Service found', 'ok');
+
+    // Subscribe to all characteristics
+    await subscribe(service, UUID_TEMP, 'temp', 'valTemp', 'cardTemp');
+    await subscribe(service, UUID_HUM,  'hum',  'valHum',  'cardHum');
+    await subscribe(service, UUID_PRES, 'pres', 'valPres', 'cardPres');
+    await subscribe(service, UUID_GAS,  'gas',  'valGas',  'cardGas');
+
+    log('Getting sync service...', 'warn');
+    const syncService = await server.getPrimaryService(SYNC_SERVICE_UUID);
+    log('Sync service found', 'ok');
+
+    syncCmdChar = await syncService.getCharacteristic(SYNC_CMD_CHAR_UUID);
+    syncDataChar = await syncService.getCharacteristic(SYNC_DATA_CHAR_UUID);
+    syncStatusChar = await syncService.getCharacteristic(SYNC_STATUS_CHAR_UUID);
+
+    await syncDataChar.startNotifications();
+    syncDataChar.addEventListener('characteristicvaluechanged', onSyncData);
+
+    await syncStatusChar.startNotifications();
+    syncStatusChar.addEventListener('characteristicvaluechanged', onSyncStatus);
+
+    log('Sync characteristics ready', 'ok');
+
+	// Ask device for backlog right after connect
+    await requestNextBacklogChunk(10);
+
+    setConnected(true);
+    log('Connected to ' + device.name, 'ok');
+    document.getElementById('btnDownload').disabled = false;
+
+  } catch(e) {
+    log('Error: ' + e.message, 'error');
+    setConnecting(false);
+  }
+}
+
+async function subscribe(service, uuid, key, valId, cardId) {
+  try {
+    const char = await service.getCharacteristic(uuid);
+
+    // Read initial value
+    const val = await char.readValue();
+    updateReading(key, valId, cardId, val);
+
+    // Subscribe to notifications
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged', (e) => {
+      updateReading(key, valId, cardId, e.target.value);
+    });
+  } catch(e) {
+    log('Could not subscribe to ' + key + ': ' + e.message, 'error');
+  }
+}
+
+function decodeBLEText(dataView) {
+  return new TextDecoder().decode(dataView).trim();
+}
+
+function onSyncStatus(event) {
+  const text = decodeBLEText(event.target.value);
+  console.log('SYNC STATUS:', text);
+  log('Sync status: ' + text, 'warn');
+}
+
+async function onSyncData(event) {
+  const text = decodeBLEText(event.target.value);
+  console.log('SYNC DATA:', text);
+
+  if (text === 'EMPTY') {
+    log('No pending SPIFFS backlog', 'ok');
+    syncInProgress = false;
+    return;
+  }
+
+  if (text.startsWith('BEGIN:')) {
+    backlogChunk = [];
+    backlogReceiving = true;
+    log('Receiving backlog chunk...', 'warn');
+    return;
+  }
+
+  if (text.startsWith('END:last_id=')) {
+    backlogReceiving = false;
+    const lastId = parseInt(text.split('=')[1], 10) || 0;
+
+    if (backlogChunk.length > 0) {
+      await uploadBacklogChunk(backlogChunk, lastId);
+    } else {
+      syncInProgress = false;
+    }
+    return;
+  }
+
+  if (backlogReceiving && text.startsWith('{')) {
+    try {
+      const row = JSON.parse(text);
+      backlogChunk.push(row);
+    } catch (err) {
+      console.error('Bad backlog JSON:', err, text);
+      log('Bad backlog JSON received', 'error');
+    }
+  }
+}
+
+async function requestNextBacklogChunk(size = 10) {
+  if (!syncCmdChar) return;
+  syncInProgress = true;
+  const cmd = `GET:${size}`;
+  await syncCmdChar.writeValue(new TextEncoder().encode(cmd));
+  log(`Requested backlog chunk of ${size}`, 'warn');
+}
+
+async function uploadBacklogChunk(records, lastId) {
+  const url = BACKEND_URL;
+  if (!url) {
+    log('No backend URL set for backlog upload', 'error');
+    syncInProgress = false;
+    return;
+  }
+
+  const payload = JSON.stringify({
+    records: records.map(r => ({
+      record_id:   r.record_id,
+      timestamp:   r.timestamp,
+      latitude:    0,
+      longitude:   0,
+      gps_fix:     0,
+      satellites:  0,
+      temperature: parseFloat(r.temperature),
+      humidity:    parseFloat(r.humidity),
+      pressure:    parseFloat(r.pressure),
+      gas:         parseFloat(r.gas),
+      battery_v:   0,
+      battery_low: 0
+    }))
+  });
+
+  console.log('Backlog payload being sent:', payload);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload
+    });
+
+    const text = await response.text();
+    console.log('Backlog response:', text);
+
+    if (!response.ok && response.status !== 302) {
+      throw new Error('HTTP ' + response.status);
+    }
+
+    allData.push(...records.map(r => ({
+      timestamp: r.timestamp,
+      temperature: r.temperature,
+      humidity: r.humidity,
+      pressure: r.pressure,
+      gas: r.gas
+    })));
+
+    stats.uploaded += records.length;
+    updateStats();
+    log(`Uploaded backlog chunk of ${records.length}`, 'ok');
+
+    await syncCmdChar.writeValue(new TextEncoder().encode(`ACK:${lastId}`));
+    log(`ACK sent up to record ${lastId}`, 'ok');
+
+    await requestNextBacklogChunk(10);
+
+  } catch (e) {
+    stats.failed++;
+    updateStats();
+    log('Backlog upload failed: ' + e.message, 'error');
+    syncInProgress = false;
+  }
+}
+
+// ============================================================
+// UPDATE READING
+// ============================================================
+function updateReading(key, valId, cardId, dataView) {
+  const text   = new TextDecoder().decode(dataView).trim();
+  const number = text.split(' ')[0];
+  latest[key]  = number;
+
+  document.getElementById(valId).textContent = number;
+  document.getElementById(valId).classList.add('fresh');
+  document.getElementById(cardId).classList.add('updated');
+
+  setTimeout(() => {
+    document.getElementById(valId).classList.remove('fresh');
+    document.getElementById(cardId).classList.remove('updated');
+  }, 2000);
+
+  // Check if full reading available
+  if (latest.temp && latest.hum && latest.pres && latest.gas) {
+    saveReading();
+    latest = { temp: null, hum: null, pres: null, gas: null };
+  }
+}
+
+// ============================================================
+// SAVE AND UPLOAD
+// ============================================================
+function saveReading() {
+  const now = new Date();
+  const ts  = now.toISOString().replace('T', ' ').substring(0, 19);
+
+const row = {
+    record_id:   "",
+    timestamp:   ts,
+    temperature: latest.temp,
+    humidity:    latest.hum,
+    pressure:    latest.pres,
+    gas:         latest.gas
+};
+
+
+  // ADD THIS LINE
+  console.log("Row being saved:", JSON.stringify(row));
+
+  allData.push(row);
+  pendingQueue.push(row);
+  stats.received++;
+  stats.pending++;
+  updateStats();
+
+  log(`Reading #${stats.received}: T=${row.temperature}°C H=${row.humidity}% P=${row.pressure}hPa G=${row.gas}kΩ`, 'ok');
+
+  // Attempt immediate upload
+  uploadNext();
+}
+
+async function uploadNext() {
+  if (pendingQueue.length === 0) return;
+
+  const url = BACKEND_URL;
+  if (!url) {
+    log('No backend URL set — data saved locally only', 'warn');
+    return;
+  }
+
+  const batch = [...pendingQueue];
+  pendingQueue = [];
+
+  try {
+    	const payload = JSON.stringify({ records: batch.map(r => ({
+  	record_id:   r.record_id || "",
+  	timestamp:   r.timestamp,
+  	latitude:    0,
+  	longitude:   0,
+  	gps_fix:     0,
+  	satellites:  0,
+ 	temperature: parseFloat(r.temperature),
+ 	humidity:    parseFloat(r.humidity),
+  	pressure:    parseFloat(r.pressure),
+  	gas:         parseFloat(r.gas),
+  	battery_v:   0,
+  	battery_low: 0
+	}))});
+
+console.log("Payload being sent:", payload);
+
+console.log('ACTUAL URL USED:', url);
+log('ACTUAL URL USED: ' + url, 'warn');
+
+	const response = await fetch(url, {
+  		method: 'POST',
+  		headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+  		body: payload
+	});
+
+const text = await response.text();
+console.log('Backend response:', text);
+
+    if (response.ok || response.status === 302) {
+      stats.uploaded += batch.length;
+      stats.pending  -= batch.length;
+      updateStats();
+      log(`Uploaded ${batch.length} record(s) to backend`, 'ok');
+    } else {
+      throw new Error('HTTP ' + response.status);
+    }
+
+  } catch(e) {
+    // Put back in queue for retry
+    pendingQueue = [...batch, ...pendingQueue];
+    stats.failed++;
+    updateStats();
+    log('Upload failed: ' + e.message + ' — will retry', 'error');
+
+    // Retry after 30 seconds
+    setTimeout(uploadNext, 30000);
+  }
+}
+
+// ============================================================
+// DISCONNECT
+// ============================================================
+function disconnectBLE() {
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+  }
+}
+
+function onDisconnected() {
+  connected = false;
+  device = null;
+  server = null;
+  syncCmdChar = null;
+  syncDataChar = null;
+  syncStatusChar = null;
+  backlogChunk = [];
+  backlogReceiving = false;
+  syncInProgress = false;
+  setConnected(false);
+  log('Disconnected from device', 'warn');
+}
+
+// ============================================================
+// DOWNLOAD CSV
+// ============================================================
+function downloadCSV() {
+  if (allData.length === 0) { log('No data to download', 'warn'); return; }
+
+  const header = 'Timestamp,Temperature (C),Humidity (%),Pressure (hPa),Gas (kOhm)\n';
+  const rows   = allData.map(r =>
+    `${r.timestamp},${r.temperature},${r.humidity},${r.pressure},${r.gas}`
+  ).join('\n');
+
+  const blob = new Blob([header + rows], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `amyy_ble_${new Date().toISOString().substring(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  log(`Downloaded ${allData.length} rows to CSV`, 'ok');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function setConnecting(val) {
+  const btn   = document.getElementById('btnConnect');
+  const label = document.getElementById('connectLabel');
+  const icon  = document.getElementById('connectIcon');
+  btn.disabled = val;
+  label.textContent = val ? 'Connecting...' : 'Scan for AMYY Logger';
+  icon.innerHTML    = val ? '<span class="spinner"></span>' : '📡';
+}
+
+function setConnected(val) {
+  connected = val;
+  const pill  = document.getElementById('statusPill');
+  const stext = document.getElementById('statusText');
+  const btnC  = document.getElementById('btnConnect');
+  const btnD  = document.getElementById('btnDisconnect');
+
+  if (val) {
+    pill.classList.add('connected');
+    stext.textContent = 'LIVE';
+    btnC.classList.add('hidden');
+    btnD.classList.remove('hidden');
+  } else {
+    pill.classList.remove('connected');
+    stext.textContent = 'OFFLINE';
+    btnC.classList.remove('hidden');
+    btnC.disabled = false;
+    document.getElementById('connectLabel').textContent = 'Scan for AMYY Logger';
+    document.getElementById('connectIcon').textContent = '📡';
+    btnD.classList.add('hidden');
+  }
+}
+
+function updateStats() {
+  document.getElementById('statReceived').textContent = stats.received;
+  document.getElementById('statUploaded').textContent = stats.uploaded;
+  document.getElementById('statPending').textContent  = stats.pending;
+  document.getElementById('statFailed').textContent   = stats.failed;
+}
+
+function log(msg, type) {
+  const container = document.getElementById('logEntries');
+  const now = new Date();
+  const time = now.toTimeString().substring(0, 8);
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
+
+  container.insertBefore(entry, container.firstChild);
+
+  // Keep last 50 entries
+  while (container.children.length > 50) {
+    container.removeChild(container.lastChild);
+  }
+}
+
+function clearLog() {
+  document.getElementById('logEntries').innerHTML = '';
+}
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0a0f1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>AMYY Field Logger</title>
+<title>HU Field Logger</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -462,7 +462,7 @@
   <div class="connect-section">
     <button class="btn-connect" id="btnConnect" onclick="connectBLE()">
       <span id="connectIcon">📡</span>
-      <span id="connectLabel">Scan for AMYY Logger</span>
+      <span id="connectLabel">Scan for HU Logger</span>
     </button>
     <button class="btn-disconnect hidden" id="btnDisconnect" onclick="disconnectBLE()">
       Disconnect
@@ -541,10 +541,10 @@
 </div>
 
 <script>
-// ============================================================
+// ====
 // CONFIG
-// ============================================================
-const DEVICE_NAME     = "AMYY Logger";
+// ====
+const DEVICE_NAME     = "HU Logger";
 const BACKEND_URL     = "https://script.google.com/macros/s/AKfycbwhdf3TSruLxjx_zf4yhlVzWT9yroWP2HSP299kYbX4bLO4dMw8XPj53N0QZo1MujtyiA/exec";
 const SERVICE_UUID    = "0000181a-0000-1000-8000-00805f9b34fb";
 const UUID_TEMP       = "00002a6e-0000-1000-8000-00805f9b34fb";
@@ -557,9 +557,9 @@ const SYNC_CMD_CHAR_UUID  = "12345678-1234-1234-1234-1234567890ac";
 const SYNC_DATA_CHAR_UUID = "12345678-1234-1234-1234-1234567890ad";
 const SYNC_STATUS_CHAR_UUID = "12345678-1234-1234-1234-1234567890ae";
 
-// ============================================================
+// ====
 // STATE
-// ============================================================
+// ====
 let device    = null;
 let server    = null;
 let connected = false;
@@ -576,11 +576,12 @@ let syncStatusChar = null;
 let backlogChunk = [];
 let backlogReceiving = false;
 let syncInProgress = false;
+let saveReadingTimer = null;
 // let liveNotificationsStarted = false;
 
-// ============================================================
+// ====
 // BLE CHECK
-// ============================================================
+// ====
 window.addEventListener('load', () => {
   if (!navigator.bluetooth) {
     document.getElementById('noBleWarning').classList.remove('hidden');
@@ -589,9 +590,9 @@ window.addEventListener('load', () => {
 });
 
 
-// ============================================================
+// ====
 // CONNECT
-// ============================================================
+// ====
 async function connectBLE() {
   try {
     setConnecting(true);
@@ -606,7 +607,7 @@ async function connectBLE() {
 //	});
 
 	device = await navigator.bluetooth.requestDevice({
-  		filters: [{ name: "AMYY Logger" }],
+  		filters: [{ name: "HU Logger" }],
   		optionalServices: [SERVICE_UUID, SYNC_SERVICE_UUID]
 	});
 
@@ -807,9 +808,9 @@ async function uploadBacklogChunk(records, lastId) {
   }
 }
 
-// ============================================================
+// ====
 // UPDATE READING
-// ============================================================
+// ====
 function updateReading(key, valId, cardId, dataView) {
   const text   = new TextDecoder().decode(dataView).trim();
   const number = text.split(' ')[0];
@@ -824,16 +825,26 @@ function updateReading(key, valId, cardId, dataView) {
     document.getElementById(cardId).classList.remove('updated');
   }, 2000);
 
-  // Check if full reading available
-  if (latest.temp && latest.hum && latest.pres && latest.gas) {
+  // Save when all 4 values received, or after 500ms fallback in case one notify is missed
+  if (latest.temp !== null && latest.hum !== null && latest.pres !== null && latest.gas !== null) {
+    if (saveReadingTimer) { clearTimeout(saveReadingTimer); saveReadingTimer = null; }
     saveReading();
     latest = { temp: null, hum: null, pres: null, gas: null };
+  } else {
+    if (saveReadingTimer) clearTimeout(saveReadingTimer);
+    saveReadingTimer = setTimeout(() => {
+      if (latest.temp !== null || latest.hum !== null || latest.pres !== null || latest.gas !== null) {
+        saveReading();
+        latest = { temp: null, hum: null, pres: null, gas: null };
+      }
+      saveReadingTimer = null;
+    }, 500);
   }
 }
 
-// ============================================================
+// ====
 // SAVE AND UPLOAD
-// ============================================================
+// ====
 function saveReading() {
   const now = new Date();
   const ts  = now.toISOString().replace('T', ' ').substring(0, 19);
@@ -893,9 +904,6 @@ async function uploadNext() {
 
 console.log("Payload being sent:", payload);
 
-console.log('ACTUAL URL USED:', url);
-log('ACTUAL URL USED: ' + url, 'warn');
-
 	const response = await fetch(url, {
   		method: 'POST',
   		headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -926,9 +934,9 @@ console.log('Backend response:', text);
   }
 }
 
-// ============================================================
+// ====
 // DISCONNECT
-// ============================================================
+// ====
 function disconnectBLE() {
   if (device && device.gatt.connected) {
     device.gatt.disconnect();
@@ -949,9 +957,9 @@ function onDisconnected() {
   log('Disconnected from device', 'warn');
 }
 
-// ============================================================
+// ====
 // DOWNLOAD CSV
-// ============================================================
+// ====
 function downloadCSV() {
   if (allData.length === 0) { log('No data to download', 'warn'); return; }
 
@@ -971,15 +979,15 @@ function downloadCSV() {
   log(`Downloaded ${allData.length} rows to CSV`, 'ok');
 }
 
-// ============================================================
+// ====
 // UI HELPERS
-// ============================================================
+// ====
 function setConnecting(val) {
   const btn   = document.getElementById('btnConnect');
   const label = document.getElementById('connectLabel');
   const icon  = document.getElementById('connectIcon');
   btn.disabled = val;
-  label.textContent = val ? 'Connecting...' : 'Scan for AMYY Logger';
+  label.textContent = val ? 'Connecting...' : 'Scan for HU Logger';
   icon.innerHTML    = val ? '<span class="spinner"></span>' : '📡';
 }
 
@@ -1000,7 +1008,7 @@ function setConnected(val) {
     stext.textContent = 'OFFLINE';
     btnC.classList.remove('hidden');
     btnC.disabled = false;
-    document.getElementById('connectLabel').textContent = 'Scan for AMYY Logger';
+    document.getElementById('connectLabel').textContent = 'Scan for HU Logger';
     document.getElementById('connectIcon').textContent = '📡';
     btnD.classList.add('hidden');
   }

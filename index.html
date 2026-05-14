@@ -754,16 +754,16 @@ async function uploadBacklogChunk(records, lastId) {
     records: records.map(r => ({
       record_id:   r.record_id,
       timestamp:   r.timestamp,
-      latitude:    0,
-      longitude:   0,
-      gps_fix:     0,
-      satellites:  0,
+      latitude:    data.latitude    ?? 0,
+	  longitude:   data.longitude   ?? 0,
+	  gps_fix:     data.gps_fix     ?? 0,
+	  satellites:  data.satellites  ?? 0,
       temperature: parseFloat(r.temperature),
       humidity:    parseFloat(r.humidity),
       pressure:    parseFloat(r.pressure),
       gas:         parseFloat(r.gas),
-      battery_v:   0,
-      battery_low: 0
+	  battery_v:   data.battery_v   ?? 0,
+	  battery_low: data.battery_low ?? 0
     }))
   });
 

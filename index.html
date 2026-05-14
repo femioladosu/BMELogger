@@ -755,15 +755,15 @@ async function uploadBacklogChunk(records, lastId) {
       record_id:   r.record_id,
       timestamp:   r.timestamp,
       latitude:    r.latitude    ?? 0,
-	  longitude:   r.longitude   ?? 0,
-	  gps_fix:     r.gps_fix     ?? 0,
-	  satellites:  r.satellites  ?? 0,
+      longitude:   r.longitude   ?? 0,
+      gps_fix:     r.gps_fix     ?? 0,
+      satellites:  r.satellites  ?? 0,
       temperature: parseFloat(r.temperature),
       humidity:    parseFloat(r.humidity),
       pressure:    parseFloat(r.pressure),
       gas:         parseFloat(r.gas),
-	  battery_v:   r.battery_v   ?? 0,
-	  battery_low: r.battery_low ?? 0
+      battery_v:   r.battery_v   ?? 0,
+      battery_low: r.battery_low ?? 0
     }))
   });
 
@@ -783,14 +783,6 @@ async function uploadBacklogChunk(records, lastId) {
       throw new Error('HTTP ' + response.status);
     }
 
-    allData.push(...records.map(r => ({
-      timestamp: r.timestamp,
-      temperature: r.temperature,
-      humidity: r.humidity,
-      pressure: r.pressure,
-      gas: r.gas
-    })));
-
     stats.uploaded += records.length;
     updateStats();
     log(`Uploaded backlog chunk of ${records.length}`, 'ok');
@@ -798,7 +790,12 @@ async function uploadBacklogChunk(records, lastId) {
     await syncCmdChar.writeValue(new TextEncoder().encode(`ACK:${lastId}`));
     log(`ACK sent up to record ${lastId}`, 'ok');
 
-    await requestNextBacklogChunk(10);
+    if (records.length >= 10) {
+      await requestNextBacklogChunk(10);
+    } else {
+      log('Backlog sync complete', 'ok');
+      syncInProgress = false;
+    }
 
   } catch (e) {
     stats.failed++;
@@ -808,6 +805,7 @@ async function uploadBacklogChunk(records, lastId) {
   }
 }
 
+	
 // ====
 // UPDATE READING
 // ====

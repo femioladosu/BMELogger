@@ -576,7 +576,7 @@ let syncStatusChar = null;
 let backlogChunk = [];
 let backlogReceiving = false;
 let syncInProgress = false;
-let saveReadingTimer = null;
+// let saveReadingTimer = null;
 // let liveNotificationsStarted = false;
 
 // ====
@@ -825,38 +825,38 @@ function updateReading(key, valId, cardId, dataView) {
     document.getElementById(cardId).classList.remove('updated');
   }, 2000);
 
-  // Save when all 4 values received, or after 500ms fallback in case one notify is missed
-  if (latest.temp !== null && latest.hum !== null && latest.pres !== null && latest.gas !== null) {
-    if (saveReadingTimer) { clearTimeout(saveReadingTimer); saveReadingTimer = null; }
-    saveReading();
-    latest = { temp: null, hum: null, pres: null, gas: null };
-  } else {
-    if (saveReadingTimer) clearTimeout(saveReadingTimer);
-    saveReadingTimer = setTimeout(() => {
-      if (latest.temp !== null || latest.hum !== null || latest.pres !== null || latest.gas !== null) {
-        saveReading();
-        latest = { temp: null, hum: null, pres: null, gas: null };
-      }
-      saveReadingTimer = null;
-    }, 500);
-  }
+  // // Save when all 4 values received, or after 500ms fallback in case one notify is missed
+  // if (latest.temp !== null && latest.hum !== null && latest.pres !== null && latest.gas !== null) {
+  //   if (saveReadingTimer) { clearTimeout(saveReadingTimer); saveReadingTimer = null; }
+  //   saveReading();
+  //   latest = { temp: null, hum: null, pres: null, gas: null };
+  // } else {
+  //   if (saveReadingTimer) clearTimeout(saveReadingTimer);
+  //   saveReadingTimer = setTimeout(() => {
+  //     if (latest.temp !== null || latest.hum !== null || latest.pres !== null || latest.gas !== null) {
+  //       saveReading();
+  //       latest = { temp: null, hum: null, pres: null, gas: null };
+  //     }
+  //     saveReadingTimer = null;
+  //   }, 500);
+  // }
 }
 
 // ====
 // SAVE AND UPLOAD
 // ====
-function saveReading() {
-  const now = new Date();
-  const ts  = now.toISOString().replace('T', ' ').substring(0, 19);
+// function saveReading() {
+//   const now = new Date();
+//   const ts  = now.toISOString().replace('T', ' ').substring(0, 19);
 
-const row = {
-    record_id:   "",
-    timestamp:   ts,
-    temperature: latest.temp,
-    humidity:    latest.hum,
-    pressure:    latest.pres,
-    gas:         latest.gas
-};
+// const row = {
+//     record_id:   "",
+//     timestamp:   ts,
+//     temperature: latest.temp,
+//     humidity:    latest.hum,
+//     pressure:    latest.pres,
+//     gas:         latest.gas
+// };
 
 
   // ADD THIS LINE
@@ -871,68 +871,68 @@ const row = {
   log(`Reading #${stats.received}: T=${row.temperature}°C H=${row.humidity}% P=${row.pressure}hPa G=${row.gas}kΩ`, 'ok');
 
   // Attempt immediate upload
-  uploadNext();
+  // uploadNext();
 }
 
-async function uploadNext() {
-  if (pendingQueue.length === 0) return;
+// async function uploadNext() {
+//   if (pendingQueue.length === 0) return;
 
-  const url = BACKEND_URL;
-  if (!url) {
-    log('No backend URL set — data saved locally only', 'warn');
-    return;
-  }
+//   const url = BACKEND_URL;
+//   if (!url) {
+//     log('No backend URL set — data saved locally only', 'warn');
+//     return;
+//   }
 
-  const batch = [...pendingQueue];
-  pendingQueue = [];
+//   const batch = [...pendingQueue];
+//   pendingQueue = [];
 
-  try {
-    	const payload = JSON.stringify({ records: batch.map(r => ({
-  	record_id:   r.record_id || "",
-  	timestamp:   r.timestamp,
-  	latitude:    0,
-  	longitude:   0,
-  	gps_fix:     0,
-  	satellites:  0,
- 	temperature: parseFloat(r.temperature),
- 	humidity:    parseFloat(r.humidity),
-  	pressure:    parseFloat(r.pressure),
-  	gas:         parseFloat(r.gas),
-  	battery_v:   0,
-  	battery_low: 0
-	}))});
+//   try {
+//     	const payload = JSON.stringify({ records: batch.map(r => ({
+//   	record_id:   r.record_id || "",
+//   	timestamp:   r.timestamp,
+//   	latitude:    0,
+//   	longitude:   0,
+//   	gps_fix:     0,
+//   	satellites:  0,
+//  	temperature: parseFloat(r.temperature),
+//  	humidity:    parseFloat(r.humidity),
+//   	pressure:    parseFloat(r.pressure),
+//   	gas:         parseFloat(r.gas),
+//   	battery_v:   0,
+//   	battery_low: 0
+// 	}))});
 
-console.log("Payload being sent:", payload);
+// console.log("Payload being sent:", payload);
 
-	const response = await fetch(url, {
-  		method: 'POST',
-  		headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-  		body: payload
-	});
+// 	const response = await fetch(url, {
+//   		method: 'POST',
+//   		headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+//   		body: payload
+// 	});
 
-const text = await response.text();
-console.log('Backend response:', text);
+// const text = await response.text();
+// console.log('Backend response:', text);
 
-    if (response.ok || response.status === 302) {
-      stats.uploaded += batch.length;
-      stats.pending  -= batch.length;
-      updateStats();
-      log(`Uploaded ${batch.length} record(s) to backend`, 'ok');
-    } else {
-      throw new Error('HTTP ' + response.status);
-    }
+//     if (response.ok || response.status === 302) {
+//       stats.uploaded += batch.length;
+//       stats.pending  -= batch.length;
+//       updateStats();
+//       log(`Uploaded ${batch.length} record(s) to backend`, 'ok');
+//     } else {
+//       throw new Error('HTTP ' + response.status);
+//     }
 
-  } catch(e) {
-    // Put back in queue for retry
-    pendingQueue = [...batch, ...pendingQueue];
-    stats.failed++;
-    updateStats();
-    log('Upload failed: ' + e.message + ' — will retry', 'error');
+//   } catch(e) {
+//     // Put back in queue for retry
+//     pendingQueue = [...batch, ...pendingQueue];
+//     stats.failed++;
+//     updateStats();
+//     log('Upload failed: ' + e.message + ' — will retry', 'error');
 
-    // Retry after 30 seconds
-    setTimeout(uploadNext, 30000);
-  }
-}
+//     // Retry after 30 seconds
+//     setTimeout(uploadNext, 30000);
+//   }
+// }
 
 // ====
 // DISCONNECT
